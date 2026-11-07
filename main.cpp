@@ -76,7 +76,7 @@ template < int T >
     ThreadPool::waitAll();
   }
 int main() {
-  {
+  
     ThreadPool pool(10);
 
     auto start = std::chrono::high_resolution_clock::now();
@@ -101,6 +101,6 @@ int main() {
     auto end = std::chrono::high_resolution_clock::now();
     auto elapsed = std::chrono::duration_cast < std::chrono::nanoseconds > (end - start).count();
     std::cout << "Latency: " << elapsed << " ns (" << elapsed / 1000000.0 << " ms (total for data generation to calculation))\n";
-  }
+  
   return 0;
 }
