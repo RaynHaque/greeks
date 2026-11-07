@@ -15,7 +15,7 @@
 #include "ThreadPool.h"
 
 template < int T >
-  void inline generateData(std::unique_ptr < std::array < std::array < float, 6 > , T >> & data, int factor) {
+  void inline generateData(std::unique_ptr < std::array < std::array < float, 6 > , T >> & randomData, int factor) {
     std::unique_ptr < std::array < float, T >> underlyingPrices = Generator::generateNValuesHeap < T > (Info::underlyingPriceMin, Info::underlyingPriceMax, factor);
     std::unique_ptr < std::array < float, T >> strikingPrice = Generator::generateNValuesHeap < T > (Info::strikingPriceMinFac, Info::strikingPriceMaxFac, factor);
     std::unique_ptr < std::array < float, T >> timeExpiry = Generator::generateNValuesHeap < T > (Info::timeExpiryMin, Info::timeExpiryMax, factor);
@@ -25,32 +25,32 @@ template < int T >
     ThreadPool::waitAll();
 
     for (int i = 0; i < T; ++i) {
-      ( * data)[i][0] = ( * underlyingPrices)[i];
-      ( * data)[i][1] = ( * underlyingPrices)[i] * ( * strikingPrice)[i];
-      ( * data)[i][2] = ( * timeExpiry)[i];
-      ( * data)[i][3] = ( * riskFreefloaterest)[i];
-      ( * data)[i][4] = ( * dividend)[i];
-      ( * data)[i][5] = ( * volatility)[i];
+      ( * randomData)[i][0] = ( * underlyingPrices)[i];
+      ( * randomData)[i][1] = ( * underlyingPrices)[i] * ( * strikingPrice)[i];
+      ( * randomData)[i][2] = ( * timeExpiry)[i];
+      ( * randomData)[i][3] = ( * riskFreefloaterest)[i];
+      ( * randomData)[i][4] = ( * dividend)[i];
+      ( * randomData)[i][5] = ( * volatility)[i];
     }
   }
 
 template < int T >
-  void inline greeks(std::unique_ptr < std::array < std::array < float, 6 > , T >> & data,
+  void inline greeks(std::unique_ptr < std::array < std::array < float, 6 > , T >> & randomData,
     std::unique_ptr < std::array < std::array < float, 8 > , T >> & greeksData, int factor) {
     int chunks = T / factor;
     int index = 0;
     while (chunks > 0) {
 
-      ThreadPool::enqueue([ & data, & greeksData, index, factor]() {
+      ThreadPool::enqueue([ & randomData, & greeksData, index, factor]() {
         for (auto i = index; i < index + factor; ++i) {
 
           ( * greeksData)[i] = Calc::calculateGreeks(
-            ( * data)[i][0],
-            ( * data)[i][1],
-            ( * data)[i][3],
-            ( * data)[i][4],
-            ( * data)[i][5],
-            ( * data)[i][2]
+            ( * randomData)[i][0],
+            ( * randomData)[i][1],
+            ( * randomData)[i][3],
+            ( * randomData)[i][4],
+            ( * randomData)[i][5],
+            ( * randomData)[i][2]
           );
         }
       });
@@ -60,15 +60,15 @@ template < int T >
     }
 
     if (T % factor != 0) {
-      ThreadPool::enqueue([ & data, & greeksData, index, factor]() {
+      ThreadPool::enqueue([ & randomData, & greeksData, index, factor]() {
         for (auto i = index; i < T; ++i) {
           ( * greeksData)[i] = Calc::calculateGreeks(
-            ( * data)[i][0],
-            ( * data)[i][1],
-            ( * data)[i][3],
-            ( * data)[i][4],
-            ( * data)[i][5],
-            ( * data)[i][2]
+            ( * randomData)[i][0],
+            ( * randomData)[i][1],
+            ( * randomData)[i][3],
+            ( * randomData)[i][4],
+            ( * randomData)[i][5],
+            ( * randomData)[i][2]
           );
         }
       });
@@ -84,16 +84,15 @@ int main() {
     constexpr int numbersOfOptions = 30000000;
     int factor = 32768;
 
-    std::unique_ptr < std::array < std::array < float, 6 > , numbersOfOptions >> data(new std::array < std::array < float, 6 > , numbersOfOptions > );
+    std::unique_ptr < std::array < std::array < float, 6 > , numbersOfOptions >> randomData(new std::array < std::array < float, 6 > , numbersOfOptions > );
 
-    std::unique_ptr < std::array < float, numbersOfOptions * 6 >> greekData(new std::array < float, 6 * numbersOfOptions > );
-
-    generateData < numbersOfOptions > (data, factor);
+    generateData < numbersOfOptions > (randomData, factor);
 
     auto startCalc = std::chrono::high_resolution_clock::now();
-    auto greeksData = std::make_unique < std::array < std::array < float, 8 > , numbersOfOptions >> ();
+    
+    std::unique_ptr < std::array < std::array < float, 8 > , numbersOfOptions >>  greeksData (new std::array < std::array < float, 8 > , numbersOfOptions >);
 
-    greeks < numbersOfOptions > (data, greeksData, factor);
+    greeks < numbersOfOptions > (randomData, greeksData, factor);
 
     auto endCalc = std::chrono::high_resolution_clock::now();
     auto elapsedCalc = std::chrono::duration_cast < std::chrono::nanoseconds > (endCalc - startCalc).count();
